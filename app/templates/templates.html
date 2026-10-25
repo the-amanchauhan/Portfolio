@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Templates{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h3>Templates</h3>
+  <form method="post" action="/templates-page/sync">
+    <button class="btn btn-outline-secondary btn-sm">Sync from Meta</button>
+  </form>
+</div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+
+<table class="table table-sm bg-white mb-5">
+  <thead><tr><th>Name</th><th>Language</th><th>Category</th><th>Status</th><th>Variables</th><th>URL button</th></tr></thead>
+  <tbody>
+  {% for t in templates %}
+    <tr>
+      <td>{{ t.name }}</td>
+      <td>{{ t.language }}</td>
+      <td>{{ t.category }}</td>
+      <td>
+        <span class="badge status-badge {{ 'bg-success' if t.status=='APPROVED' else ('bg-danger' if t.status=='REJECTED' else 'bg-warning text-dark') }}">
+          {{ t.status }}
+        </span>
+      </td>
+      <td>{{ t.variable_count }}</td>
+      <td>{{ 'Yes' if t.has_url_button else '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<div class="card">
+  <div class="card-body">
+    <h5>Create new template</h5>
+    <p class="text-muted small">
+      Use <code>{{ "{{1}}" }}</code>, <code>{{ "{{2}}" }}</code>... in the body for variables.
+      For a trackable link button, put <code>{{ "{{1}}" }}</code> at the end of the URL
+      (e.g. <code>https://yourdomain.com/r/{{ "{{1}}" }}</code>) — the dashboard fills
+      a unique tracking code per recipient automatically.
+    </p>
+    <form method="post" action="/templates-page/create">
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="form-label small">Template name (lowercase_underscore)</label>
+          <input class="form-control" name="name" required pattern="[a-z0-9_]+">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Language</label>
+          <select class="form-select" name="language">
+            <option value="en_US">English (US)</option>
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small">Category</label>
+          <select class="form-select" name="category">
+            <option value="UTILITY">Utility</option>
+            <option value="MARKETING">Marketing</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="form-label small">Body text</label>
+        <textarea class="form-control" name="body_text" rows="4" required></textarea>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-md-4">
+          <label class="form-label small">Button text (optional)</label>
+          <input class="form-control" name="button_text" placeholder="e.g. View details">
+        </div>
+        <div class="col-md-8">
+          <label class="form-label small">Button URL (optional, must end in {{ '{{1}}' }})</label>
+          <input class="form-control" name="button_url" placeholder="https://yourdomain.com/r/{{ '{{1}}' }}">
+        </div>
+      </div>
+      <div class="mt-2">
+        <label class="form-label small">Where the link should actually send people (real destination)</label>
+        <input class="form-control" name="redirect_target" placeholder="https://net2success.com/your-real-page">
+      </div>
+      <button class="btn btn-primary mt-3" type="submit">Submit for Meta review</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
