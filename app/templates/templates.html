@@ -10,13 +10,14 @@
 {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
 
 <table class="table table-sm bg-white mb-5">
-  <thead><tr><th>Name</th><th>Language</th><th>Category</th><th>Status</th><th>Variables</th><th>URL button</th></tr></thead>
+  <thead><tr><th>Name</th><th>Language</th><th>Category</th><th>Header</th><th>Status</th><th>Variables</th><th>URL button</th></tr></thead>
   <tbody>
   {% for t in templates %}
     <tr>
       <td>{{ t.name }}</td>
       <td>{{ t.language }}</td>
       <td>{{ t.category }}</td>
+      <td>{{ 'Image' if t.header_type == 'IMAGE' else '-' }}</td>
       <td>
         <span class="badge status-badge {{ 'bg-success' if t.status=='APPROVED' else ('bg-danger' if t.status=='REJECTED' else 'bg-warning text-dark') }}">
           {{ t.status }}
@@ -38,13 +39,18 @@
       (e.g. <code>https://yourdomain.com/r/{{ "{{1}}" }}</code>) — the dashboard fills
       a unique tracking code per recipient automatically.
     </p>
-    <form method="post" action="/templates-page/create">
+    <p class="text-muted small">
+      To include an image at the top of the message, choose <strong>Image</strong> below and
+      upload a sample picture — Meta uses it to review the template. When you later send a
+      campaign with this template, you'll give the dashboard a real image URL to send to everyone.
+    </p>
+    <form method="post" action="/templates-page/create" enctype="multipart/form-data">
       <div class="row g-2">
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label class="form-label small">Template name (lowercase_underscore)</label>
           <input class="form-control" name="name" required pattern="[a-z0-9_]+">
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label small">Language</label>
           <select class="form-select" name="language">
             <option value="en_US">English (US)</option>
@@ -52,12 +58,24 @@
             <option value="hi">Hindi</option>
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label class="form-label small">Category</label>
           <select class="form-select" name="category">
             <option value="UTILITY">Utility</option>
             <option value="MARKETING">Marketing</option>
           </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small">Header</label>
+          <select class="form-select" name="header_type" id="headerTypeSelect"
+                  onchange="document.getElementById('headerImageWrap').style.display = this.value==='IMAGE' ? 'block':'none'">
+            <option value="NONE">None</option>
+            <option value="IMAGE">Image</option>
+          </select>
+        </div>
+        <div class="col-md-3" id="headerImageWrap" style="display:none;">
+          <label class="form-label small">Sample image (for Meta review)</label>
+          <input class="form-control" type="file" name="header_image" accept="image/*">
         </div>
       </div>
       <div class="mt-3">
