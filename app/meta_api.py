@@ -4,10 +4,10 @@ import requests
 ACCESS_TOKEN = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
 PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
 WABA_ID = os.environ.get("WHATSAPP_WABA_ID", "")
+APP_ID = os.environ.get("META_APP_ID", "")
 API_VERSION = os.environ.get("WHATSAPP_API_VERSION", "v21.0")
 
 BASE = f"https://graph.facebook.com/{API_VERSION}"
-
 
 def _headers():
     return {
@@ -15,12 +15,17 @@ def _headers():
         "Content-Type": "application/json",
     }
 
-
-def send_template_message(phone, template_name, language, body_params, button_param=None):
-    """Sends one template message. body_params: list of strings for the body
-    component (in order). button_param: optional single string for a dynamic
-    URL button's {{1}} suffix. Returns (ok, wamid_or_None, error_or_None)."""
+# Sends one template message. body_params: list of strings for the body
+# component (in order). button_param: optional single string for a dynamic
+# URL button's {{1}} suffix. header_image_link: optional public image URL
+# for templates that have an IMAGE header. Returns (ok, wamid_or_None, error_or_None).
+def send_template_message(phone, template_name, language, body_params, button_param=None, header_image_link=None):
     components = []
+    if header_image_link:
+        components.append({
+            "type": "header",
+            "parameters": [{"type": "image", "image": {"link": header_image_link}}],
+        })
     if body_params:
         components.append({
             "type": "body",
@@ -67,9 +72,8 @@ def send_template_message(phone, template_name, language, body_params, button_pa
     detail = f"[{code}" + (f"/{subcode}" if subcode else "") + f"] {msg}"
     return False, None, detail
 
-
+# Fetch message templates from the WABA. Requires WHATSAPP_WABA_ID.
 def list_templates():
-    """Fetch message templates from the WABA. Requires WHATSAPP_WABA_ID."""
     if not WABA_ID:
         return False, [], "WHATSAPP_WABA_ID is not set"
     try:
@@ -85,12 +89,55 @@ def list_templates():
         return False, [], err
     return True, data.get("data", []), None
 
+# Uploads an example image via the Resumable Upload API and returns a header
+# handle Meta can use when reviewing an IMAGE-header template.
+# Returns (ok, handle_or_None, error_or_None).
+def upload_header_image_handle(file_bytes, filename, mime_type):
+    if not APP_ID:
+        return False, None, "META_APP_ID is not set"
+    try:
+        start = requests.post(
+            f"https://graph.facebook.com/{API_VERSION}/{APP_ID}/uploads",
+            params={
+                "file_length": len(file_bytes),
+                "file_type": mime_type or "image/jpeg",
+                "access_token": ACCESS_TOKEN,
+            },
+            timeout=30,
+        )
+        start_data = start.json()
+        session_id = start_data.get("id")
+        if not session_id:
+            return False, None, f"could not start upload session: {start_data}"
 
-def create_template(name, language, category, body_text, button_text=None, button_url=None):
-    """Create a new template on the WABA and submit for review."""
+        upload = requests.post(
+            f"https://graph.facebook.com/{API_VERSION}/{session_id}",
+            headers={
+                "Authorization": f"OAuth {ACCESS_TOKEN}",
+                "file_offset": "0",
+            },
+            data=file_bytes,
+            timeout=60,
+        )
+        upload_data = upload.json()
+        handle = upload_data.get("h")
+        if not handle:
+            return False, None, f"upload failed: {upload_data}"
+        return True, handle, None
+    except Exception as e:
+        return False, None, str(e)
+
+# Create a new template on the WABA and submit for review.
+def create_template(name, language, category, body_text, button_text=None, button_url=None, header_type="NONE", header_handle=None):
     if not WABA_ID:
         return False, None, "WHATSAPP_WABA_ID is not set"
     components = []
+    if header_type == "IMAGE" and header_handle:
+        components.append({
+            "type": "HEADER",
+            "format": "IMAGE",
+            "example": {"header_handle": [header_handle]},
+        })
     if "{{1}}" in body_text or "{{" in body_text:
         example_body = body_text
         n = 1
@@ -131,3 +178,5 @@ def create_template(name, language, category, body_text, button_text=None, butto
         err = data.get("error", {}).get("message", "unknown error")
         return False, None, err
     return True, data.get("id"), None
+
+# end of meta_api.py
