@@ -8,10 +8,8 @@ from sqlalchemy.orm import relationship
 
 from .db import Base
 
-
 def now():
     return datetime.datetime.utcnow()
-
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -20,7 +18,6 @@ class Contact(Base):
     name = Column(String(255), default="")
     extra = Column(Text, default="")  # JSON string for extra template variables
     created_at = Column(DateTime, default=now)
-
 
 class Template(Base):
     __tablename__ = "templates"
@@ -35,8 +32,8 @@ class Template(Base):
     url_button_base = Column(String(512), default="")  # static part of the URL, {{1}} appended as tracking code
     redirect_target = Column(String(1024), default="")  # where /r/<code> ultimately sends the recipient
     meta_template_id = Column(String(64), default="")
+    header_type = Column(String(16), default="NONE")  # NONE or IMAGE
     updated_at = Column(DateTime, default=now, onupdate=now)
-
 
 class Campaign(Base):
     __tablename__ = "campaigns"
@@ -44,10 +41,10 @@ class Campaign(Base):
     name = Column(String(255), nullable=False)
     template_id = Column(Integer, ForeignKey("templates.id"))
     status = Column(String(32), default="draft")  # draft, sending, done
+    header_image_url = Column(String(1024), default="")
     created_at = Column(DateTime, default=now)
 
     template = relationship("Template")
-
 
 class CampaignRecipient(Base):
     __tablename__ = "campaign_recipients"
@@ -67,7 +64,6 @@ class CampaignRecipient(Base):
 
     campaign = relationship("Campaign")
 
-
 class WebhookEvent(Base):
     __tablename__ = "webhook_events"
     id = Column(Integer, primary_key=True)
@@ -76,6 +72,7 @@ class WebhookEvent(Base):
     payload = Column(Text)
     received_at = Column(DateTime, default=now)
 
-
 def gen_tracking_code():
     return secrets.token_urlsafe(6).replace("-", "a").replace("_", "b")[:8]
+
+# end of models.py
