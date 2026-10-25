@@ -1,5 +1,6 @@
 import time
 import datetime
+from typing import List
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -13,35 +14,39 @@ from .. import meta_api
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
 
-
 @router.get("/campaigns", response_class=HTMLResponse)
 def list_campaigns(request: Request, db: Session = Depends(get_db)):
     if (resp := require_login(request)):
         return resp
     campaigns = db.query(Campaign).order_by(Campaign.created_at.desc()).all()
     tpls = db.query(Template).filter(Template.status == "APPROVED").all()
-    contact_count = db.query(Contact).count()
+    contacts = db.query(Contact).order_by(Contact.name).all()
     return templates.TemplateResponse(
         "campaigns.html",
         {"request": request, "logged_in": True, "campaigns": campaigns,
-         "templates": tpls, "contact_count": contact_count},
+         "templates": tpls, "contacts": contacts},
     )
-
 
 @router.post("/campaigns/create")
 def create_campaign(
     request: Request, background_tasks: BackgroundTasks,
     name: str = Form(...), template_id: int = Form(...),
+    contact_ids: List[str] = Form(default=[]),
+    header_image_url: str = Form(""),
     db: Session = Depends(get_db),
 ):
     if (resp := require_login(request)):
         return resp
-    campaign = Campaign(name=name, template_id=template_id, status="sending")
+    campaign = Campaign(name=name, template_id=template_id, status="sending", header_image_url=header_image_url)
     db.add(campaign)
     db.commit()
     db.refresh(campaign)
 
-    contacts = db.query(Contact).all()
+    if contact_ids:
+        ids = [int(i) for i in contact_ids]
+        contacts = db.query(Contact).filter(Contact.id.in_(ids)).all()
+    else:
+        contacts = db.query(Contact).all()
     tpl = db.query(Template).filter(Template.id == template_id).first()
     for c in contacts:
         code = gen_tracking_code() if tpl.has_url_button else ""
@@ -53,7 +58,6 @@ def create_campaign(
 
     background_tasks.add_task(run_campaign, campaign.id)
     return RedirectResponse(url=f"/campaigns/{campaign.id}", status_code=302)
-
 
 def run_campaign(campaign_id: int):
     db = SessionLocal()
@@ -69,8 +73,10 @@ def run_campaign(campaign_id: int):
             while len(body_params) < tpl.variable_count:
                 body_params.append("")
             button_param = r.tracking_code if tpl.has_url_button else None
+            header_link = campaign.header_image_url or None
             ok, wamid, err = meta_api.send_template_message(
                 r.phone, tpl.name, tpl.language, body_params, button_param,
+                header_image_link=header_link,
             )
             r.status = "sent" if ok else "failed"
             r.wamid = wamid or ""
@@ -82,7 +88,6 @@ def run_campaign(campaign_id: int):
         db.commit()
     finally:
         db.close()
-
 
 @router.get("/campaigns/{campaign_id}", response_class=HTMLResponse)
 def campaign_detail(request: Request, campaign_id: int, db: Session = Depends(get_db)):
@@ -103,3 +108,5 @@ def campaign_detail(request: Request, campaign_id: int, db: Session = Depends(ge
         {"request": request, "logged_in": True, "campaign": campaign,
          "recipients": recipients, "stats": stats},
     )
+
+# end of campaigns_router.py
