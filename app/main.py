@@ -22,4 +22,4 @@ app.include_router(tracking_router.router)
 
 @app.get("/healthz")
 def healthz():
-return {"ok": True}
+    return {"ok": True}
