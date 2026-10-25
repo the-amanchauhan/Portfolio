@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block content %}
+<h3 class="mb-1">{{ campaign.name }}</h3>
+<p class="text-muted">Template: {{ campaign.template.name if campaign.template else '-' }} &middot; Status: <span class="badge {{ 'bg-success' if campaign.status=='done' else 'bg-info text-dark' }}">{{ campaign.status }}</span></p>
+
+<div class="row mb-4 text-center">
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.total }}</div><div class="text-muted small">Total</div></div></div>
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.sent }}</div><div class="text-muted small">Sent</div></div></div>
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.delivered }}</div><div class="text-muted small">Delivered</div></div></div>
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.read }}</div><div class="text-muted small">Read</div></div></div>
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.clicked }}</div><div class="text-muted small">Link Clicked</div></div></div>
+  <div class="col"><div class="card p-3"><div class="fs-4">{{ stats.failed }}</div><div class="text-muted small">Failed</div></div></div>
+</div>
+
+{% if campaign.status == 'sending' %}
+<div class="alert alert-info">Sending in progress — refresh this page to see updates.</div>
+{% endif %}
+
+<table class="table table-sm bg-white">
+  <thead><tr><th>Phone</th><th>Name</th><th>Status</th><th>Sent</th><th>Delivered</th><th>Read</th><th>Clicked</th><th>Error</th></tr></thead>
+  <tbody>
+  {% for r in recipients %}
+    <tr>
+      <td>{{ r.phone }}</td>
+      <td>{{ r.name }}</td>
+      <td>
+        <span class="badge status-badge {{
+          'bg-success' if r.status=='read' else
+          'bg-primary' if r.status=='delivered' else
+          'bg-secondary' if r.status=='sent' else
+          'bg-danger' if r.status=='failed' else 'bg-light text-dark' }}">
+          {{ r.status }}
+        </span>
+      </td>
+      <td>{{ r.sent_at.strftime('%H:%M:%S') if r.sent_at else '' }}</td>
+      <td>{{ r.delivered_at.strftime('%H:%M:%S') if r.delivered_at else '' }}</td>
+      <td>{{ r.read_at.strftime('%H:%M:%S') if r.read_at else '' }}</td>
+      <td>{{ r.clicked_at.strftime('%H:%M:%S') if r.clicked_at else '' }}</td>
+      <td class="text-danger small">{{ r.error }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
