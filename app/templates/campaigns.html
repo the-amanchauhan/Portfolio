@@ -9,23 +9,45 @@
     {% if templates|length == 0 %}
       <div class="alert alert-warning">No <strong>APPROVED</strong> templates yet. Go to
         <a href="/templates-page">Templates</a> and sync/create one first.</div>
+    {% elif contacts|length == 0 %}
+      <div class="alert alert-warning">No contacts yet. Go to
+        <a href="/contacts">Contacts</a> and add or import some first.</div>
     {% else %}
-    <form method="post" action="/campaigns/create" class="row g-2">
-      <div class="col-md-4">
-        <input class="form-control" name="name" placeholder="Campaign name" required>
+    <form method="post" action="/campaigns/create">
+      <div class="row g-2 mb-2">
+        <div class="col-md-4">
+          <input class="form-control" name="name" placeholder="Campaign name" required>
+        </div>
+        <div class="col-md-5">
+          <select class="form-select" name="template_id" required>
+            {% for t in templates %}
+              <option value="{{ t.id }}">{{ t.name }} ({{ t.language }}){{ ' (needs image URL)' if t.header_type == 'IMAGE' else '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input class="form-control" name="header_image_url" placeholder="Image URL (if template needs one)">
+        </div>
       </div>
-      <div class="col-md-5">
-        <select class="form-select" name="template_id" required>
-          {% for t in templates %}
-            <option value="{{ t.id }}">{{ t.name }} ({{ t.language }})</option>
-          {% endfor %}
-        </select>
+
+      <div class="mb-2">
+        <label class="small">
+          <input type="checkbox" id="selectAllContacts" checked onclick="document.querySelectorAll('.contact-chk').forEach(function(c){c.checked = document.getElementById('selectAllContacts').checked;})">
+          Select all contacts ({{ contacts|length }})
+        </label>
       </div>
-      <div class="col-md-3">
-        <button class="btn btn-primary w-100" type="submit" onclick="return confirm('Send to all {{ contact_count }} contacts now?');">
-          Send to all {{ contact_count }} contacts
-        </button>
+      <div class="border rounded p-2 mb-3 bg-white" style="max-height: 260px; overflow-y: auto;">
+        {% for c in contacts %}
+          <div class="form-check">
+            <input class="form-check-input contact-chk" type="checkbox" name="contact_ids" value="{{ c.id }}" id="contact{{ c.id }}" checked>
+            <label class="form-check-label small" for="contact{{ c.id }}">{{ c.name or '(no name)' }} - {{ c.phone }}</label>
+          </div>
+        {% endfor %}
       </div>
+
+      <button class="btn btn-primary" type="submit" onclick="return confirm('Send to the selected contacts now?');">
+        Create &amp; send campaign
+      </button>
     </form>
     {% endif %}
   </div>
