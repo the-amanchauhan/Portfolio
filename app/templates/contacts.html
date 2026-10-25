@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Contacts{% endblock %}
+{% block content %}
+<h3 class="mb-4">Contacts ({{ contacts|length }})</h3>
+
+<div class="row">
+  <div class="col-md-5 mb-4">
+    <div class="card">
+      <div class="card-body">
+        <h6>Add one contact</h6>
+        <form method="post" action="/contacts/add" class="row g-2">
+          <div class="col-6"><input class="form-control" name="phone" placeholder="Phone (e.g. 9812345678)" required></div>
+          <div class="col-6"><input class="form-control" name="name" placeholder="Name"></div>
+          <div class="col-12"><button class="btn btn-primary btn-sm mt-2" type="submit">Add</button></div>
+        </form>
+        <hr>
+        <h6>Import from Excel</h6>
+        <form method="post" action="/contacts/import" enctype="multipart/form-data">
+          <input class="form-control form-control-sm mb-2" type="file" name="file" accept=".xlsx" required>
+          <small class="text-muted">Needs 'phone' and 'name' columns.</small><br>
+          <button class="btn btn-outline-primary btn-sm mt-2" type="submit">Import</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <table class="table table-sm bg-white">
+      <thead><tr><th>Phone</th><th>Name</th><th></th></tr></thead>
+      <tbody>
+      {% for c in contacts %}
+        <tr>
+          <td>{{ c.phone }}</td>
+          <td>{{ c.name }}</td>
+          <td>
+            <form method="post" action="/contacts/delete/{{ c.id }}" onsubmit="return confirm('Delete this contact?');">
+              <button class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
