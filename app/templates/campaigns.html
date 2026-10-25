@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Campaigns{% endblock %}
+{% block content %}
+<h3 class="mb-4">Campaigns</h3>
+
+<div class="card mb-4">
+  <div class="card-body">
+    <h6>New campaign</h6>
+    {% if templates|length == 0 %}
+      <div class="alert alert-warning">No <strong>APPROVED</strong> templates yet. Go to
+        <a href="/templates-page">Templates</a> and sync/create one first.</div>
+    {% else %}
+    <form method="post" action="/campaigns/create" class="row g-2">
+      <div class="col-md-4">
+        <input class="form-control" name="name" placeholder="Campaign name" required>
+      </div>
+      <div class="col-md-5">
+        <select class="form-select" name="template_id" required>
+          {% for t in templates %}
+            <option value="{{ t.id }}">{{ t.name }} ({{ t.language }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button class="btn btn-primary w-100" type="submit" onclick="return confirm('Send to all {{ contact_count }} contacts now?');">
+          Send to all {{ contact_count }} contacts
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<table class="table table-sm bg-white">
+  <thead><tr><th>Name</th><th>Template</th><th>Status</th><th>Created</th><th></th></tr></thead>
+  <tbody>
+  {% for c in campaigns %}
+    <tr>
+      <td>{{ c.name }}</td>
+      <td>{{ c.template.name if c.template else '-' }}</td>
+      <td><span class="badge {{ 'bg-success' if c.status=='done' else 'bg-info text-dark' }}">{{ c.status }}</span></td>
+      <td>{{ c.created_at.strftime('%d %b %Y %H:%M') }}</td>
+      <td><a href="/campaigns/{{ c.id }}">View</a></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
