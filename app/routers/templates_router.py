@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Request, Form, Depends, UploadFile, File
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,13 @@ from .. import meta_api
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
+
+# Counts only real numbered placeholders like {{1}}, {{2}}. A bare "{{}}"
+# (an empty/malformed variable some templates carry) is not a real
+# substitutable parameter and must not be counted, or Meta rejects the
+# send with "number of parameters does not match".
+def count_variables(body_text):
+    return len(re.findall(r"\{\{\d+\}\}", body_text or ""))
 
 @router.get("/templates-page", response_class=HTMLResponse)
 def list_templates_page(request: Request, db: Session = Depends(get_db), error: str = None):
@@ -40,7 +48,7 @@ def sync_templates(request: Request, db: Session = Depends(get_db)):
         for comp in t.get("components", []):
             if comp.get("type") == "BODY":
                 body_text = comp.get("text", "")
-                var_count = body_text.count("{{")
+                var_count = count_variables(body_text)
             if comp.get("type") == "HEADER" and comp.get("format") == "IMAGE":
                 header_type = "IMAGE"
             if comp.get("type") == "BUTTONS":
@@ -99,7 +107,7 @@ async def create_template(
     )
     if not ok:
         return RedirectResponse(url=f"/templates-page?error={err}", status_code=302)
-    var_count = body_text.count("{{")
+    var_count = count_variables(body_text)
     db.add(Template(
         name=name, language=language, category=category, status="PENDING",
         body_text=body_text, variable_count=var_count,
