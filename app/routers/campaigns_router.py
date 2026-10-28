@@ -27,6 +27,12 @@ def list_campaigns(request: Request, db: Session = Depends(get_db)):
          "templates": tpls, "contacts": contacts},
     )
 
+# True only when the template's URL button has a {{1}} placeholder (a
+# per-recipient tracking link). A static URL button needs no parameter at
+# send time, and sending one anyway makes Meta reject the whole message.
+def _is_dynamic_button(tpl):
+    return bool(tpl.has_url_button and "{{" in (tpl.url_button_base or ""))
+
 @router.post("/campaigns/create")
 def create_campaign(
     request: Request, background_tasks: BackgroundTasks,
@@ -48,8 +54,9 @@ def create_campaign(
     else:
         contacts = db.query(Contact).all()
     tpl = db.query(Template).filter(Template.id == template_id).first()
+    dynamic_button = _is_dynamic_button(tpl)
     for c in contacts:
-        code = gen_tracking_code() if tpl.has_url_button else ""
+        code = gen_tracking_code() if dynamic_button else ""
         db.add(CampaignRecipient(
             campaign_id=campaign.id, contact_id=c.id, phone=c.phone,
             name=c.name, status="queued", tracking_code=code,
@@ -64,15 +71,15 @@ def run_campaign(campaign_id: int):
     try:
         campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
         tpl = db.query(Template).filter(Template.id == campaign.template_id).first()
+        dynamic_button = _is_dynamic_button(tpl)
         recipients = db.query(CampaignRecipient).filter(
             CampaignRecipient.campaign_id == campaign_id, CampaignRecipient.status == "queued"
         ).all()
         for r in recipients:
             body_params = [r.name or "there"] if tpl.variable_count >= 1 else []
-            # pad extra variables with blank placeholders if the template needs more than 1
             while len(body_params) < tpl.variable_count:
                 body_params.append("")
-            button_param = r.tracking_code if tpl.has_url_button else None
+            button_param = r.tracking_code if dynamic_button else None
             header_link = campaign.header_image_url or None
             ok, wamid, err = meta_api.send_template_message(
                 r.phone, tpl.name, tpl.language, body_params, button_param,
